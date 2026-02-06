@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Music</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
+
+<script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
 
 <style>
 :root{
@@ -24,59 +26,113 @@ body{
   color:var(--text);
 }
 
-header{padding:16px;font-size:22px;font-weight:600}
-
-.tabs{display:flex;gap:18px;padding:0 16px 12px}
-.tab{opacity:.5;cursor:pointer}
-.tab.active{opacity:1;border-bottom:2px solid var(--accent);padding-bottom:4px}
-
-.search{padding:0 16px 10px}
-.search input{
-  width:100%;
-  padding:10px 14px;
-  border-radius:20px;
-  border:none;
+header{
+  padding:16px;
+  font-size:22px;
+  font-weight:600;
 }
 
-.list{padding:8px;padding-bottom:120px}
+.tabs{
+  display:flex;
+  gap:20px;
+  padding:0 16px;
+}
+.tab{
+  opacity:.5;
+  cursor:pointer;
+}
+.tab.active{
+  opacity:1;
+  border-bottom:2px solid var(--accent);
+  padding-bottom:4px;
+}
+
+.search{
+  padding:12px 16px;
+}
+.search input{
+  width:100%;
+  padding:12px 14px;
+  border-radius:20px;
+  border:none;
+  outline:none;
+}
+
+.list{
+  padding:8px 16px 140px;
+}
+
 .track{
   display:flex;
   gap:12px;
+  align-items:center;
   padding:10px;
   border-radius:12px;
+  cursor:pointer;
 }
-.track:hover{background:rgba(255,255,255,.08)}
+.track:hover{
+  background:rgba(255,255,255,.05);
+}
+
 .cover{
-  width:48px;height:48px;
-  border-radius:8px;
-  background:#1f2937;
+  width:56px;
+  height:56px;
+  border-radius:10px;
+  background:#1e293b;
   display:flex;
   align-items:center;
   justify-content:center;
+  overflow:hidden;
+  font-size:22px;
 }
-.info{flex:1}
-.title{font-size:15px}
-.artist{font-size:12px;opacity:.7}
+.cover img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.info{
+  flex:1;
+}
+.title{
+  font-weight:600;
+}
+.artist{
+  opacity:.6;
+  font-size:14px;
+}
 
 .player{
   position:fixed;
-  bottom:0;left:0;right:0;
+  bottom:0;
+  left:0;
+  right:0;
   background:#020617;
   padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
 }
-audio{width:100%}
+.player .cover{
+  margin:auto;
+}
+audio{
+  width:100%;
+}
 
 .addBtn{
   position:fixed;
   bottom:90px;
   left:50%;
   transform:translateX(-50%);
-  width:56px;height:56px;
+  width:60px;
+  height:60px;
   border-radius:50%;
   background:var(--accent);
   color:#000;
   font-size:34px;
   border:none;
+  cursor:pointer;
 }
 </style>
 </head>
@@ -109,6 +165,7 @@ let db, tracks=[];
 const list=document.getElementById("list");
 const audio=document.getElementById("audio");
 const file=document.getElementById("file");
+const coverDiv=document.getElementById("cover");
 
 /* IndexedDB */
 const req=indexedDB.open("MusicDB",1);
@@ -125,57 +182,57 @@ function loadDB(){
   const tx=db.transaction("tracks","readonly");
   tx.objectStore("tracks").openCursor().onsuccess=e=>{
     const c=e.target.result;
-    if(c){tracks.push(c.value);c.continue();}
+    if(c){ tracks.push(c.value); c.continue(); }
     else renderTracks(tracks);
   };
 }
 
-file.onchange = () => {
-  [...file.files].forEach(file => {
-    jsmediatags.read(file, {
-      onSuccess: tag => {
-        const tags = tag.tags;
+function saveMusic(obj){
+  return new Promise(res=>{
+    const tx=db.transaction("tracks","readwrite");
+    tx.objectStore("tracks").add(obj);
+    tx.oncomplete=res;
+  });
+}
 
-        let cover = null;
-        if (tags.picture) {
-          const { data, format } = tags.picture;
-          let base64 = "";
-          data.forEach(byte => base64 += String.fromCharCode(byte));
-          cover = `data:${format};base64,${btoa(base64)}`;
+file.onchange=()=>{
+  [...file.files].forEach(f=>{
+    jsmediatags.read(f,{
+      onSuccess:tag=>{
+        const t=tag.tags;
+        let cover=null;
+        if(t.picture){
+          const {data,format}=t.picture;
+          let b64="";
+          data.forEach(b=>b64+=String.fromCharCode(b));
+          cover=`data:${format};base64,${btoa(b64)}`;
         }
-
-        const reader = new FileReader();
-        reader.onload = async () => {
+        const r=new FileReader();
+        r.onload=async()=>{
           await saveMusic({
-  title: tags.title || file.name,
-  artist: tags.artist || "Desconhecido",
-  album: tags.album || "",
-  cover: cover,
-  blob: reader.result // 👈 aqui
-});
-
-          loadDB(); // recarrega lista
-        };
-
-        reader.readAsArrayBuffer(file);
-      },
-
-      onError: () => {
-        // fallback se não ler metadata
-        const reader = new FileReader();
-        reader.onload = async () => {
-          await saveMusic({
-            title: file.name,
-            artist: "Desconhecido",
-            album: "",
-            cover: null,
-            blob: reader.result
+            title:t.title||f.name,
+            artist:t.artist||"Desconhecido",
+            album:t.album||"",
+            cover:cover,
+            blob:r.result
           });
-
           loadDB();
         };
-
-        reader.readAsArrayBuffer(file);
+        r.readAsArrayBuffer(f);
+      },
+      onError:()=>{
+        const r=new FileReader();
+        r.onload=async()=>{
+          await saveMusic({
+            title:f.name,
+            artist:"Desconhecido",
+            album:"",
+            cover:null,
+            blob:r.result
+          });
+          loadDB();
+        };
+        r.readAsArrayBuffer(f);
       }
     });
   });
@@ -187,32 +244,27 @@ function renderTracks(arr){
     const d=document.createElement("div");
     d.className="track";
     d.innerHTML=`
-      <div class="cover">🎵</div>
+      <div class="cover">${t.cover?`<img src="${t.cover}">`:"🎵"}</div>
       <div class="info">
-        <div class="title">${t.name}</div>
+        <div class="title">${t.title}</div>
         <div class="artist">${t.artist}</div>
       </div>`;
-    d.onclick = ()=>{
-  audio.src = URL.createObjectURL(new Blob([t.blob]));
-  audio.play();
-  updateCover(t); // 🔥 agora a capa aparece
-};
+    d.onclick=()=>{
+      audio.src=URL.createObjectURL(new Blob([t.blob]));
+      audio.play();
+      updateCover(t);
+    };
     list.appendChild(d);
   });
 }
 
-function search(txt){
-  renderTracks(tracks.filter(t=>t.name.toLowerCase().includes(txt.toLowerCase())));
+function updateCover(t){
+  coverDiv.innerHTML=t.cover?`<img src="${t.cover}">`:"🎵";
 }
-  function updateCover(track) {
-  const coverDiv = document.getElementById("cover");
 
-  if (track.cover) {
-    coverDiv.innerHTML = `<img src="${track.cover}" alt="Capa">`;
-  } else {
-    coverDiv.textContent = "🎵";
-  }
-  }
+function search(txt){
+  renderTracks(tracks.filter(t=>t.title.toLowerCase().includes(txt.toLowerCase())));
+}
 
 function setTab(tab,e){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -229,21 +281,20 @@ function setTab(tab,e){
     Object.keys(g).forEach(a=>{
       const d=document.createElement("div");
       d.className="track";
-      d.innerHTML=`<div class="cover">📁</div><div class="info"><div class="title">${a}</div></div>`;
+      d.innerHTML=`
+        <div class="cover">🎤</div>
+        <div class="info"><div class="title">${a}</div></div>`;
       d.onclick=()=>renderTracks(g[a]);
       list.appendChild(d);
     });
   }
 }
 
-/* SERVICE WORKER */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js")
-    .then(()=>console.log("SW OK"))
-    .catch(err=>console.error(err));
+/* Service Worker */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./service-worker.js");
 }
 </script>
-  <script src="db.js"></script>
 
 </body>
 </html>
