@@ -1,7 +1,8 @@
 {
   "name": "Music",
   "short_name": "Music",
-  "start_url": "./",
+  "start_url": "/Meu-app/",
+  "scope": "/Meu-app/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
