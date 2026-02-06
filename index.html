@@ -2,14 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Meu Player</title>
 
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1d3a">
+
 <style>
-*{
-  box-sizing:border-box;
-  font-family:system-ui, Arial, sans-serif;
-}
+*{box-sizing:border-box;font-family:system-ui,Arial}
 body{
   margin:0;
   background:linear-gradient(180deg,#0b1d3a,#061126);
@@ -23,19 +23,31 @@ header{
   font-weight:bold;
 }
 
-/* BOTÕES */
-.controls{
+/* ABAS */
+.tabs{
   display:flex;
-  gap:12px;
+  gap:16px;
+  padding:0 16px 10px;
+  font-size:15px;
+}
+.tab{
+  opacity:.6;
+  cursor:pointer;
+}
+.tab.active{
+  opacity:1;
+  border-bottom:2px solid #38bdf8;
+}
+
+/* BUSCA */
+.search{
   padding:0 16px 10px;
 }
-button{
-  background:#1e3a8a;
-  color:#fff;
-  border:none;
-  padding:10px 16px;
+.search input{
+  width:100%;
+  padding:10px;
   border-radius:20px;
-  font-size:14px;
+  border:none;
 }
 
 /* LISTA */
@@ -50,40 +62,44 @@ button{
   border-radius:10px;
 }
 .track:hover{
-  background:rgba(255,255,255,0.08);
+  background:rgba(255,255,255,.08);
 }
 .cover{
   width:48px;
   height:48px;
-  background:#1e293b;
   border-radius:8px;
+  background:#1e293b;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:20px;
+  overflow:hidden;
 }
-.info{
-  flex:1;
+.cover img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
-.title{
-  font-size:15px;
-}
-.artist{
-  font-size:12px;
-  opacity:0.7;
-}
+.info{flex:1}
+.title{font-size:15px}
+.artist{font-size:12px;opacity:.7}
 
-/* PLAYER FIXO */
+/* PLAYER */
 .player{
   position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
+  bottom:0;left:0;right:0;
   background:#020617;
-  padding:12px;
+  padding:10px;
 }
-audio{
-  width:100%;
+audio{width:100%}
+
+/* PLAY ANIMAÇÃO */
+.playing{
+  animation:pulse 1.2s infinite;
+}
+@keyframes pulse{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.08)}
+  100%{transform:scale(1)}
 }
 </style>
 </head>
@@ -92,7 +108,17 @@ audio{
 
 <header>Faixas</header>
 
-<div class="controls">
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('tracks')">Faixas</div>
+  <div class="tab" onclick="switchTab('folders')">Pastas</div>
+  <div class="tab" onclick="switchTab('playlists')">Playlists</div>
+</div>
+
+<div class="search">
+  <input type="text" placeholder="Buscar música..." oninput="search(this.value)">
+</div>
+
+<div style="padding:0 16px 10px">
   <input type="file" accept="audio/*" multiple onchange="loadSongs(event)">
 </div>
 
@@ -105,30 +131,59 @@ audio{
 <script>
 const list = document.getElementById("list");
 const audio = document.getElementById("audio");
+let tracks=[];
 
+/* CARREGAR MÚSICAS */
 function loadSongs(e){
   [...e.target.files].forEach(file=>{
     const url = URL.createObjectURL(file);
+    tracks.push({name:file.name,url});
+  });
+  render(tracks);
+}
 
-    const div = document.createElement("div");
-    div.className = "track";
-    div.onclick = () => playSong(url, file.name);
+/* RENDER */
+function render(arr){
+  list.innerHTML="";
+  arr.forEach(t=>{
+    const div=document.createElement("div");
+    div.className="track";
+    div.onclick=()=>play(t.url,div);
 
-    div.innerHTML = `
+    div.innerHTML=`
       <div class="cover">🎵</div>
       <div class="info">
-        <div class="title">${file.name}</div>
+        <div class="title">${t.name}</div>
         <div class="artist">Arquivo local</div>
       </div>
     `;
-
     list.appendChild(div);
   });
 }
 
-function playSong(url, name){
-  audio.src = url;
+/* PLAY */
+function play(url,el){
+  document.querySelectorAll(".track").forEach(t=>t.classList.remove("playing"));
+  el.classList.add("playing");
+  audio.src=url;
   audio.play();
+}
+
+/* BUSCA */
+function search(txt){
+  const f=tracks.filter(t=>t.name.toLowerCase().includes(txt.toLowerCase()));
+  render(f);
+}
+
+/* ABAS (visual) */
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  event.target.classList.add("active");
+}
+
+/* PWA */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("service-worker.js");
 }
 </script>
 
