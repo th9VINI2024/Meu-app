@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Music</title>
 
 <link rel="manifest" href="manifest.json">
@@ -26,12 +25,14 @@ body{
   color:var(--text);
 }
 
+/* Header */
 header{
   padding:16px;
   font-size:22px;
   font-weight:600;
 }
 
+/* Tabs */
 .tabs{
   display:flex;
   gap:20px;
@@ -47,19 +48,9 @@ header{
   padding-bottom:4px;
 }
 
-.search{
-  padding:12px 16px;
-}
-.search input{
-  width:100%;
-  padding:12px 14px;
-  border-radius:20px;
-  border:none;
-  outline:none;
-}
-
+/* List */
 .list{
-  padding:8px 16px 140px;
+  padding:12px 16px 160px;
 }
 
 .track{
@@ -83,7 +74,6 @@ header{
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  font-size:22px;
 }
 .cover img{
   width:100%;
@@ -91,35 +81,46 @@ header{
   object-fit:cover;
 }
 
-.info{
-  flex:1;
-}
-.title{
-  font-weight:600;
-}
-.artist{
-  opacity:.6;
-  font-size:14px;
-}
+.info{flex:1}
+.title{font-weight:600}
+.artist{opacity:.6;font-size:14px}
 
+/* Mini Player */
 .player{
   position:fixed;
   bottom:0;
   left:0;
   right:0;
   background:#020617;
-  padding:10px;
+  padding:10px 14px;
   display:flex;
-  flex-direction:column;
-  gap:6px;
+  align-items:center;
+  gap:12px;
+  animation:slideUp .3s ease;
 }
-.player .cover{
-  margin:auto;
-}
-audio{
-  width:100%;
+@keyframes slideUp{
+  from{transform:translateY(100%)}
+  to{transform:translateY(0)}
 }
 
+.player .cover{
+  width:48px;
+  height:48px;
+}
+
+.playerInfo{
+  flex:1;
+  overflow:hidden;
+}
+.playerInfo div{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+audio{width:120px}
+
+/* Add Button */
 .addBtn{
   position:fixed;
   bottom:90px;
@@ -144,16 +145,18 @@ audio{
 <div class="tabs">
   <div class="tab active" onclick="setTab('tracks',event)">Faixas</div>
   <div class="tab" onclick="setTab('artists',event)">Artistas</div>
-</div>
-
-<div class="search">
-  <input type="text" placeholder="Buscar..." oninput="search(this.value)">
+  <div class="tab" onclick="setTab('playlists',event)">Playlists</div>
 </div>
 
 <div class="list" id="list"></div>
 
-<div class="player">
-  <div class="cover" id="cover">🎵</div>
+<!-- Mini Player -->
+<div class="player" id="player" style="display:none">
+  <div class="cover" id="playerCover">🎵</div>
+  <div class="playerInfo">
+    <div id="playerTitle"></div>
+    <div id="playerArtist" style="opacity:.6;font-size:14px"></div>
+  </div>
   <audio id="audio" controls></audio>
 </div>
 
@@ -161,16 +164,22 @@ audio{
 <input type="file" id="file" accept="audio/*" multiple hidden>
 
 <script>
-let db, tracks=[];
+let db, tracks=[], playlists=[];
 const list=document.getElementById("list");
 const audio=document.getElementById("audio");
 const file=document.getElementById("file");
-const coverDiv=document.getElementById("cover");
+
+const player=document.getElementById("player");
+const playerCover=document.getElementById("playerCover");
+const playerTitle=document.getElementById("playerTitle");
+const playerArtist=document.getElementById("playerArtist");
 
 /* IndexedDB */
-const req=indexedDB.open("MusicDB",1);
+const req=indexedDB.open("MusicDB",2);
 req.onupgradeneeded=e=>{
-  e.target.result.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
+  const db=e.target.result;
+  db.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
+  db.createObjectStore("playlists",{keyPath:"id",autoIncrement:true});
 };
 req.onsuccess=e=>{
   db=e.target.result;
@@ -179,22 +188,26 @@ req.onsuccess=e=>{
 
 function loadDB(){
   tracks=[];
-  const tx=db.transaction("tracks","readonly");
-  tx.objectStore("tracks").openCursor().onsuccess=e=>{
-    const c=e.target.result;
-    if(c){ tracks.push(c.value); c.continue(); }
-    else renderTracks(tracks);
-  };
+  playlists=[];
+  db.transaction("tracks","readonly").objectStore("tracks")
+    .openCursor().onsuccess=e=>{
+      const c=e.target.result;
+      if(c){tracks.push(c.value);c.continue();}
+      else renderTracks(tracks);
+    };
+  db.transaction("playlists","readonly").objectStore("playlists")
+    .openCursor().onsuccess=e=>{
+      const c=e.target.result;
+      if(c){playlists.push(c.value);c.continue();}
+    };
 }
 
-function saveMusic(obj){
-  return new Promise(res=>{
-    const tx=db.transaction("tracks","readwrite");
-    tx.objectStore("tracks").add(obj);
-    tx.oncomplete=res;
-  });
+function save(store,obj){
+  const tx=db.transaction(store,"readwrite");
+  tx.objectStore(store).add(obj);
 }
 
+/* Upload */
 file.onchange=()=>{
   [...file.files].forEach(f=>{
     jsmediatags.read(f,{
@@ -202,34 +215,13 @@ file.onchange=()=>{
         const t=tag.tags;
         let cover=null;
         if(t.picture){
-          const {data,format}=t.picture;
           let b64="";
-          data.forEach(b=>b64+=String.fromCharCode(b));
-          cover=`data:${format};base64,${btoa(b64)}`;
+          t.picture.data.forEach(b=>b64+=String.fromCharCode(b));
+          cover=`data:${t.picture.format};base64,${btoa(b64)}`;
         }
         const r=new FileReader();
-        r.onload=async()=>{
-          await saveMusic({
-            title:t.title||f.name,
-            artist:t.artist||"Desconhecido",
-            album:t.album||"",
-            cover:cover,
-            blob:r.result
-          });
-          loadDB();
-        };
-        r.readAsArrayBuffer(f);
-      },
-      onError:()=>{
-        const r=new FileReader();
-        r.onload=async()=>{
-          await saveMusic({
-            title:f.name,
-            artist:"Desconhecido",
-            album:"",
-            cover:null,
-            blob:r.result
-          });
+        r.onload=()=>{
+          save("tracks",{title:t.title||f.name,artist:t.artist||"Desconhecido",cover,blob:r.result});
           loadDB();
         };
         r.readAsArrayBuffer(f);
@@ -238,6 +230,7 @@ file.onchange=()=>{
   });
 };
 
+/* Render */
 function renderTracks(arr){
   list.innerHTML="";
   arr.forEach(t=>{
@@ -249,28 +242,27 @@ function renderTracks(arr){
         <div class="title">${t.title}</div>
         <div class="artist">${t.artist}</div>
       </div>`;
-    d.onclick=()=>{
-      audio.src=URL.createObjectURL(new Blob([t.blob]));
-      audio.play();
-      updateCover(t);
-    };
+    d.onclick=()=>playTrack(t);
     list.appendChild(d);
   });
 }
 
-function updateCover(t){
-  coverDiv.innerHTML=t.cover?`<img src="${t.cover}">`:"🎵";
+function playTrack(t){
+  audio.src=URL.createObjectURL(new Blob([t.blob]));
+  audio.play();
+  player.style.display="flex";
+  playerCover.innerHTML=t.cover?`<img src="${t.cover}">`:"🎵";
+  playerTitle.textContent=t.title;
+  playerArtist.textContent=t.artist;
 }
 
-function search(txt){
-  renderTracks(tracks.filter(t=>t.title.toLowerCase().includes(txt.toLowerCase())));
-}
-
+/* Tabs */
 function setTab(tab,e){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   e.target.classList.add("active");
 
   if(tab==="tracks") renderTracks(tracks);
+
   if(tab==="artists"){
     const g={};
     tracks.forEach(t=>{
@@ -281,10 +273,30 @@ function setTab(tab,e){
     Object.keys(g).forEach(a=>{
       const d=document.createElement("div");
       d.className="track";
-      d.innerHTML=`
-        <div class="cover">🎤</div>
-        <div class="info"><div class="title">${a}</div></div>`;
+      d.innerHTML=`<div class="cover">🎤</div><div class="info"><div class="title">${a}</div></div>`;
       d.onclick=()=>renderTracks(g[a]);
+      list.appendChild(d);
+    });
+  }
+
+  if(tab==="playlists"){
+    list.innerHTML="";
+    const btn=document.createElement("div");
+    btn.className="track";
+    btn.innerHTML="➕ Criar playlist";
+    btn.onclick=()=>{
+      const name=prompt("Nome da playlist:");
+      if(name){
+        save("playlists",{name,tracks:[]});
+        loadDB();
+      }
+    };
+    list.appendChild(btn);
+
+    playlists.forEach(p=>{
+      const d=document.createElement("div");
+      d.className="track";
+      d.innerHTML=`<div class="cover">🎶</div><div class="info"><div class="title">${p.name}</div></div>`;
       list.appendChild(d);
     });
   }
