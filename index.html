@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Music</title>
 
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
 <style>
 :root{
   --bg:#0b1d3a;
   --bg2:#061126;
-  --card:#111827;
   --accent:#38bdf8;
   --text:#fff;
 }
@@ -21,79 +23,40 @@ body{
   color:var(--text);
 }
 
-/* HEADER */
-header{
-  padding:16px;
-  font-size:22px;
-  font-weight:600;
-}
+header{padding:16px;font-size:22px;font-weight:600}
 
-/* TABS */
-.tabs{
-  display:flex;
-  gap:18px;
-  padding:0 16px 12px;
-}
-.tab{
-  opacity:.5;
-  cursor:pointer;
-}
-.tab.active{
-  opacity:1;
-  border-bottom:2px solid var(--accent);
-  padding-bottom:4px;
-}
+.tabs{display:flex;gap:18px;padding:0 16px 12px}
+.tab{opacity:.5;cursor:pointer}
+.tab.active{opacity:1;border-bottom:2px solid var(--accent);padding-bottom:4px}
 
-/* SEARCH */
-.search{
-  padding:0 16px 10px;
-}
+.search{padding:0 16px 10px}
 .search input{
   width:100%;
   padding:10px 14px;
   border-radius:20px;
   border:none;
-  outline:none;
 }
 
-/* LIST */
-.list{
-  padding:8px;
-  padding-bottom:120px;
-}
+.list{padding:8px;padding-bottom:120px}
 .track{
   display:flex;
-  align-items:center;
   gap:12px;
   padding:10px;
   border-radius:12px;
 }
-.track:hover{
-  background:rgba(255,255,255,.08);
-}
-.track.playing{
-  background:rgba(56,189,248,.18);
-}
+.track:hover{background:rgba(255,255,255,.08)}
 .cover{
-  width:48px;
-  height:48px;
+  width:48px;height:48px;
   border-radius:8px;
   background:#1f2937;
   display:flex;
   align-items:center;
   justify-content:center;
-  overflow:hidden;
-}
-.cover img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
 }
 .info{flex:1}
 .title{font-size:15px}
 .artist{font-size:12px;opacity:.7}
 
-/* PLAYER */
 .player{
   position:fixed;
   bottom:0;left:0;right:0;
@@ -102,21 +65,18 @@ header{
 }
 audio{width:100%}
 
-/* BOTÃO + */
 .addBtn{
   position:fixed;
   bottom:90px;
   left:50%;
   transform:translateX(-50%);
-  width:56px;
-  height:56px;
+  width:56px;height:56px;
   border-radius:50%;
   background:var(--accent);
   color:#000;
   font-size:34px;
   border:none;
 }
-.addBtn:active{transform:translateX(-50%) scale(.95)}
 </style>
 </head>
 
@@ -125,9 +85,8 @@ audio{width:100%}
 <header>Músicas</header>
 
 <div class="tabs">
-  <div class="tab active" onclick="setTab('tracks')">Faixas</div>
-  <div class="tab" onclick="setTab('artists')">Pastas</div>
-  <div class="tab" onclick="setTab('playlists')">Playlists</div>
+  <div class="tab active" onclick="setTab('tracks',event)">Faixas</div>
+  <div class="tab" onclick="setTab('artists',event)">Artistas</div>
 </div>
 
 <div class="search">
@@ -144,102 +103,74 @@ audio{width:100%}
 <input type="file" id="file" accept="audio/*" multiple hidden>
 
 <script>
-let db;
-let currentTab="tracks";
-let tracks=[];
+let db, tracks=[];
 const list=document.getElementById("list");
 const audio=document.getElementById("audio");
+const file=document.getElementById("file");
 
-/* DATABASE */
+/* IndexedDB */
 const req=indexedDB.open("MusicDB",1);
 req.onupgradeneeded=e=>{
-  db=e.target.result;
-  db.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
+  e.target.result.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
 };
 req.onsuccess=e=>{
   db=e.target.result;
   loadDB();
 };
 
-/* LOAD DB */
 function loadDB(){
   tracks=[];
   const tx=db.transaction("tracks","readonly");
   tx.objectStore("tracks").openCursor().onsuccess=e=>{
     const c=e.target.result;
-    if(c){
-      tracks.push(c.value);
-      c.continue();
-    }else{
-      renderTracks(tracks);
-    }
+    if(c){tracks.push(c.value);c.continue();}
+    else renderTracks(tracks);
   };
 }
 
-/* ADD FILES */
 file.onchange=()=>{
   [...file.files].forEach(f=>{
-    const reader=new FileReader();
-    reader.onload=()=>{
-      const artist=f.name.includes("-")?f.name.split("-")[0].trim():"Desconhecido";
-      saveTrack({
+    const r=new FileReader();
+    r.onload=()=>{
+      const artist=f.name.split("-")[0] || "Desconhecido";
+      const tx=db.transaction("tracks","readwrite");
+      tx.objectStore("tracks").add({
         name:f.name,
-        artist,
-        blob:reader.result
+        artist:artist.trim(),
+        blob:r.result
       });
+      tx.oncomplete=loadDB;
     };
-    reader.readAsArrayBuffer(f);
+    r.readAsArrayBuffer(f);
   });
 };
 
-/* SAVE */
-function saveTrack(obj){
-  const tx=db.transaction("tracks","readwrite");
-  tx.objectStore("tracks").add(obj);
-  tx.oncomplete=loadDB;
-}
-
-/* RENDER */
 function renderTracks(arr){
   list.innerHTML="";
   arr.forEach(t=>{
-    const div=document.createElement("div");
-    div.className="track";
-    div.onclick=()=>play(t,div);
-
-    div.innerHTML=`
+    const d=document.createElement("div");
+    d.className="track";
+    d.innerHTML=`
       <div class="cover">🎵</div>
       <div class="info">
         <div class="title">${t.name}</div>
         <div class="artist">${t.artist}</div>
-      </div>
-    `;
-    list.appendChild(div);
+      </div>`;
+    d.onclick=()=>{
+      audio.src=URL.createObjectURL(new Blob([t.blob]));
+      audio.play();
+    };
+    list.appendChild(d);
   });
 }
 
-/* PLAY */
-function play(t,el){
-  document.querySelectorAll(".track").forEach(x=>x.classList.remove("playing"));
-  el.classList.add("playing");
-  audio.src=URL.createObjectURL(new Blob([t.blob]));
-  audio.play();
-}
-
-/* SEARCH */
 function search(txt){
-  const f=tracks.filter(t=>
-    t.name.toLowerCase().includes(txt.toLowerCase()) ||
-    t.artist.toLowerCase().includes(txt.toLowerCase())
-  );
-  renderTracks(f);
+  renderTracks(tracks.filter(t=>t.name.toLowerCase().includes(txt.toLowerCase())));
 }
 
-/* TABS */
-function setTab(tab){
-  currentTab=tab;
+function setTab(tab,e){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  event.target.classList.add("active");
+  e.target.classList.add("active");
 
   if(tab==="tracks") renderTracks(tracks);
   if(tab==="artists"){
@@ -257,18 +188,13 @@ function setTab(tab){
       list.appendChild(d);
     });
   }
-  if(tab==="playlists"){
-    list.innerHTML="<p style='padding:20px;opacity:.7'>Playlists em breve 💿</p>";
-  }
 }
+
+/* SERVICE WORKER */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/Meu-app/service-worker.js", {
-      scope: "/Meu-app/"
-    })
-    .then(reg => console.log("SW registrado com escopo:", reg.scope))
-    .catch(err => console.error("Erro SW:", err));
-  });
+  navigator.serviceWorker.register("service-worker.js")
+    .then(()=>console.log("SW OK"))
+    .catch(err=>console.error(err));
 }
 </script>
 
