@@ -129,20 +129,54 @@ function loadDB(){
   };
 }
 
-file.onchange=()=>{
-  [...file.files].forEach(f=>{
-    const r=new FileReader();
-    r.onload=()=>{
-      const artist=f.name.split("-")[0] || "Desconhecido";
-      const tx=db.transaction("tracks","readwrite");
-      tx.objectStore("tracks").add({
-        name:f.name,
-        artist:artist.trim(),
-        blob:r.result
-      });
-      tx.oncomplete=loadDB;
-    };
-    r.readAsArrayBuffer(f);
+file.onchange = () => {
+  [...file.files].forEach(file => {
+    jsmediatags.read(file, {
+      onSuccess: tag => {
+        const tags = tag.tags;
+
+        let cover = null;
+        if (tags.picture) {
+          const { data, format } = tags.picture;
+          let base64 = "";
+          data.forEach(byte => base64 += String.fromCharCode(byte));
+          cover = `data:${format};base64,${btoa(base64)}`;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+          await saveMusic({
+            title: tags.title || file.name,
+            artist: tags.artist || "Desconhecido",
+            album: tags.album || "",
+            cover: cover,
+            audio: reader.result
+          });
+
+          loadDB(); // recarrega lista
+        };
+
+        reader.readAsArrayBuffer(file);
+      },
+
+      onError: () => {
+        // fallback se não ler metadata
+        const reader = new FileReader();
+        reader.onload = async () => {
+          await saveMusic({
+            title: file.name,
+            artist: "Desconhecido",
+            album: "",
+            cover: null,
+            audio: reader.result
+          });
+
+          loadDB();
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+    });
   });
 };
 
