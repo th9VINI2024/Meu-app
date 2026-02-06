@@ -147,12 +147,12 @@ file.onchange = () => {
         const reader = new FileReader();
         reader.onload = async () => {
           await saveMusic({
-            title: tags.title || file.name,
-            artist: tags.artist || "Desconhecido",
-            album: tags.album || "",
-            cover: cover,
-            audio: reader.result
-          });
+  title: tags.title || file.name,
+  artist: tags.artist || "Desconhecido",
+  album: tags.album || "",
+  cover: cover,
+  blob: reader.result // 👈 aqui
+});
 
           loadDB(); // recarrega lista
         };
