@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Music</title>
+<title>Calculadora</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
@@ -12,150 +12,92 @@
 
 <style>
 :root{
-  --bg:#0b1d3a;
-  --bg2:#061126;
-  --accent:#38bdf8;
-  --text:#fff;
+  --bg:#0b1d3a;--bg2:#061126;--accent:#38bdf8;--text:#fff
 }
+*{box-sizing:border-box;font-family:system-ui}
+body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text)}
 
-*{box-sizing:border-box;font-family:system-ui,Arial}
-body{
-  margin:0;
-  background:linear-gradient(180deg,var(--bg),var(--bg2));
-  color:var(--text);
-}
+header{padding:16px;font-size:22px;font-weight:600;user-select:none}
 
-/* Header */
-header{
-  padding:16px;
-  font-size:22px;
-  font-weight:600;
-}
+.tabs{display:flex;gap:20px;padding:0 16px}
+.tab{opacity:.5;cursor:pointer}
+.tab.active{opacity:1;border-bottom:2px solid var(--accent)}
 
-/* Tabs */
-.tabs{
-  display:flex;
-  gap:20px;
-  padding:0 16px;
-}
-.tab{
-  opacity:.5;
-  cursor:pointer;
-}
-.tab.active{
-  opacity:1;
-  border-bottom:2px solid var(--accent);
-  padding-bottom:4px;
-}
+.list{padding:12px 16px 180px}
 
-/* List */
-.list{
-  padding:12px 16px 160px;
-}
+.track{display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;cursor:pointer}
+.track:hover{background:rgba(255,255,255,.06)}
 
-.track{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  padding:10px;
-  border-radius:12px;
-  cursor:pointer;
-}
-.track:hover{
-  background:rgba(255,255,255,.05);
-}
-
-.cover{
-  width:56px;
-  height:56px;
-  border-radius:10px;
-  background:#1e293b;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
-}
-.cover img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
+.cover{width:56px;height:56px;border-radius:10px;background:#1e293b;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cover img{width:100%;height:100%;object-fit:cover}
 
 .info{flex:1}
 .title{font-weight:600}
 .artist{opacity:.6;font-size:14px}
 
-/* Mini Player */
+.like{font-size:18px;cursor:pointer}
+.like.on{color:#f43f5e}
+
+/* Player */
 .player{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  background:#020617;
-  padding:10px 14px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  animation:slideUp .3s ease;
+  position:fixed;bottom:0;left:0;right:0;
+  background:#020617;padding:10px 14px;
+  display:none;align-items:center;gap:12px
 }
-@keyframes slideUp{
-  from{transform:translateY(100%)}
-  to{transform:translateY(0)}
+.player.full{top:0;bottom:0;flex-direction:column;z-index:10}
+.player .cover{width:48px;height:48px}
+.player.full .cover{width:200px;height:200px}
+
+.playerInfo{text-align:center}
+audio{width:160px}
+
+/* Equalizer */
+.eq{display:flex;gap:4px;margin-top:12px}
+.bar{width:6px;height:20px;background:var(--accent);animation:beat 1s infinite ease-in-out}
+.bar:nth-child(2){animation-delay:.1s}
+.bar:nth-child(3){animation-delay:.2s}
+@keyframes beat{
+  0%,100%{height:10px}
+  50%{height:40px}
 }
 
-.player .cover{
-  width:48px;
-  height:48px;
-}
-
-.playerInfo{
-  flex:1;
-  overflow:hidden;
-}
-.playerInfo div{
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-audio{width:120px}
-
-/* Add Button */
+/* Add */
 .addBtn{
-  position:fixed;
-  bottom:90px;
-  left:50%;
-  transform:translateX(-50%);
-  width:60px;
-  height:60px;
-  border-radius:50%;
-  background:var(--accent);
-  color:#000;
-  font-size:34px;
-  border:none;
-  cursor:pointer;
+  position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+  width:60px;height:60px;border-radius:50%;
+  background:var(--accent);color:#000;font-size:32px;border:none
 }
+
+/* Fake Screen */
+#fake{height:100vh;display:flex;align-items:center;justify-content:center;font-size:32px}
 </style>
 </head>
 
 <body>
 
-<header>Músicas</header>
+<header id="header">Calculadora</header>
+
+<div id="fake">0</div>
+
+<div id="app" style="display:none">
 
 <div class="tabs">
   <div class="tab active" onclick="setTab('tracks',event)">Faixas</div>
   <div class="tab" onclick="setTab('artists',event)">Artistas</div>
   <div class="tab" onclick="setTab('playlists',event)">Playlists</div>
+  <div class="tab" onclick="setTab('liked',event)">Curtidas</div>
 </div>
 
 <div class="list" id="list"></div>
 
-<!-- Mini Player -->
-<div class="player" id="player" style="display:none">
+<div class="player" id="player">
   <div class="cover" id="playerCover">🎵</div>
   <div class="playerInfo">
     <div id="playerTitle"></div>
-    <div id="playerArtist" style="opacity:.6;font-size:14px"></div>
+    <div id="playerArtist" style="opacity:.6"></div>
+    <div class="eq">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
   </div>
   <audio id="audio" controls></audio>
 </div>
@@ -163,48 +105,53 @@ audio{width:120px}
 <button class="addBtn" onclick="file.click()">+</button>
 <input type="file" id="file" accept="audio/*" multiple hidden>
 
+</div>
+
 <script>
-let db, tracks=[], playlists=[];
+/* DISFARCE */
+let unlocked=false;
+let pressTimer;
+header.onmousedown=()=>pressTimer=setTimeout(unlock,3000);
+header.onmouseup=()=>clearTimeout(pressTimer);
+function unlock(){
+  fake.style.display="none";
+  app.style.display="block";
+  header.textContent="Músicas";
+}
+
+/* DB + STATE */
+let db,tracks=[],playlists=[],queue=[],index=0;
+
 const list=document.getElementById("list");
 const audio=document.getElementById("audio");
 const file=document.getElementById("file");
-
 const player=document.getElementById("player");
-const playerCover=document.getElementById("playerCover");
-const playerTitle=document.getElementById("playerTitle");
-const playerArtist=document.getElementById("playerArtist");
+const pc=document.getElementById("playerCover");
+const pt=document.getElementById("playerTitle");
+const pa=document.getElementById("playerArtist");
 
-/* IndexedDB */
-const req=indexedDB.open("MusicDB",2);
+/* DB */
+const req=indexedDB.open("MusicDB",4);
 req.onupgradeneeded=e=>{
-  const db=e.target.result;
-  db.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
-  db.createObjectStore("playlists",{keyPath:"id",autoIncrement:true});
+  const d=e.target.result;
+  if(!d.objectStoreNames.contains("tracks"))
+    d.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
+  if(!d.objectStoreNames.contains("playlists"))
+    d.createObjectStore("playlists",{keyPath:"id",autoIncrement:true});
 };
-req.onsuccess=e=>{
-  db=e.target.result;
-  loadDB();
-};
+req.onsuccess=e=>{db=e.target.result;load()};
 
-function loadDB(){
-  tracks=[];
-  playlists=[];
-  db.transaction("tracks","readonly").objectStore("tracks")
-    .openCursor().onsuccess=e=>{
-      const c=e.target.result;
-      if(c){tracks.push(c.value);c.continue();}
-      else renderTracks(tracks);
-    };
-  db.transaction("playlists","readonly").objectStore("playlists")
-    .openCursor().onsuccess=e=>{
-      const c=e.target.result;
-      if(c){playlists.push(c.value);c.continue();}
-    };
-}
-
-function save(store,obj){
-  const tx=db.transaction(store,"readwrite");
-  tx.objectStore(store).add(obj);
+function load(){
+  tracks=[];playlists=[];
+  db.transaction("tracks").objectStore("tracks").openCursor().onsuccess=e=>{
+    const c=e.target.result;
+    if(c){tracks.push(c.value);c.continue()}
+    else renderTracks(tracks)
+  };
+  db.transaction("playlists").objectStore("playlists").openCursor().onsuccess=e=>{
+    const c=e.target.result;
+    if(c){playlists.push(c.value);c.continue()}
+  };
 }
 
 /* Upload */
@@ -215,14 +162,16 @@ file.onchange=()=>{
         const t=tag.tags;
         let cover=null;
         if(t.picture){
-          let b64="";
-          t.picture.data.forEach(b=>b64+=String.fromCharCode(b));
-          cover=`data:${t.picture.format};base64,${btoa(b64)}`;
+          let b="";
+          t.picture.data.forEach(x=>b+=String.fromCharCode(x));
+          cover=`data:${t.picture.format};base64,${btoa(b)}`;
         }
         const r=new FileReader();
         r.onload=()=>{
-          save("tracks",{title:t.title||f.name,artist:t.artist||"Desconhecido",cover,blob:r.result});
-          loadDB();
+          db.transaction("tracks","readwrite")
+            .objectStore("tracks")
+            .add({title:t.title||f.name,artist:t.artist||"Desconhecido",cover,blob:r.result,liked:false});
+          load();
         };
         r.readAsArrayBuffer(f);
       }
@@ -233,7 +182,7 @@ file.onchange=()=>{
 /* Render */
 function renderTracks(arr){
   list.innerHTML="";
-  arr.forEach(t=>{
+  arr.forEach((t,i)=>{
     const d=document.createElement("div");
     d.className="track";
     d.innerHTML=`
@@ -241,19 +190,32 @@ function renderTracks(arr){
       <div class="info">
         <div class="title">${t.title}</div>
         <div class="artist">${t.artist}</div>
-      </div>`;
-    d.onclick=()=>playTrack(t);
+      </div>
+      <div class="like ${t.liked?'on':''}" onclick="toggleLike(event,${t.id})">❤</div>`;
+    d.onclick=()=>start(arr,i);
     list.appendChild(d);
   });
 }
 
-function playTrack(t){
+/* Player */
+function start(arr,i){queue=arr;index=i;play()}
+function play(){
+  const t=queue[index];
   audio.src=URL.createObjectURL(new Blob([t.blob]));
   audio.play();
   player.style.display="flex";
-  playerCover.innerHTML=t.cover?`<img src="${t.cover}">`:"🎵";
-  playerTitle.textContent=t.title;
-  playerArtist.textContent=t.artist;
+  pc.innerHTML=t.cover?`<img src="${t.cover}">`:"🎵";
+  pt.textContent=t.title;pa.textContent=t.artist;
+}
+audio.onended=()=>{index=(index+1)%queue.length;play()}
+
+/* Like */
+function toggleLike(e,id){
+  e.stopPropagation();
+  const t=tracks.find(x=>x.id===id);
+  t.liked=!t.liked;
+  db.transaction("tracks","readwrite").objectStore("tracks").put(t);
+  load();
 }
 
 /* Tabs */
@@ -261,14 +223,10 @@ function setTab(tab,e){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   e.target.classList.add("active");
 
-  if(tab==="tracks") renderTracks(tracks);
-
+  if(tab==="tracks")renderTracks(tracks);
+  if(tab==="liked")renderTracks(tracks.filter(t=>t.liked));
   if(tab==="artists"){
-    const g={};
-    tracks.forEach(t=>{
-      g[t.artist]=g[t.artist]||[];
-      g[t.artist].push(t);
-    });
+    const g={};tracks.forEach(t=>(g[t.artist]=g[t.artist]||[]).push(t));
     list.innerHTML="";
     Object.keys(g).forEach(a=>{
       const d=document.createElement("div");
@@ -278,21 +236,17 @@ function setTab(tab,e){
       list.appendChild(d);
     });
   }
-
   if(tab==="playlists"){
     list.innerHTML="";
-    const btn=document.createElement("div");
-    btn.className="track";
-    btn.innerHTML="➕ Criar playlist";
-    btn.onclick=()=>{
-      const name=prompt("Nome da playlist:");
-      if(name){
-        save("playlists",{name,tracks:[]});
-        loadDB();
+    const c=document.createElement("div");
+    c.className="track";c.textContent="➕ Criar playlist";
+    c.onclick=()=>{
+      const n=prompt("Nome");if(n){
+        db.transaction("playlists","readwrite").objectStore("playlists").add({name:n,tracks:[]});
+        load();
       }
     };
-    list.appendChild(btn);
-
+    list.appendChild(c);
     playlists.forEach(p=>{
       const d=document.createElement("div");
       d.className="track";
@@ -301,12 +255,6 @@ function setTab(tab,e){
     });
   }
 }
-
-/* Service Worker */
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js");
-}
 </script>
-
 </body>
 </html>
