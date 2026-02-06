@@ -97,8 +97,8 @@ audio{width:100%}
 <div class="list" id="list"></div>
 
 <div class="player">
+  <div class="cover" id="cover">🎵</div>
   <audio id="audio" controls></audio>
-  <div class="cover">
 </div>
 
 <button class="addBtn" onclick="file.click()">+</button>
@@ -192,10 +192,11 @@ function renderTracks(arr){
         <div class="title">${t.name}</div>
         <div class="artist">${t.artist}</div>
       </div>`;
-    d.onclick=()=>{
-      audio.src=URL.createObjectURL(new Blob([t.blob]));
-      audio.play();
-    };
+    d.onclick = ()=>{
+  audio.src = URL.createObjectURL(new Blob([t.blob]));
+  audio.play();
+  updateCover(t); // 🔥 agora a capa aparece
+};
     list.appendChild(d);
   });
 }
@@ -203,6 +204,15 @@ function renderTracks(arr){
 function search(txt){
   renderTracks(tracks.filter(t=>t.name.toLowerCase().includes(txt.toLowerCase())));
 }
+  function updateCover(track) {
+  const coverDiv = document.getElementById("cover");
+
+  if (track.cover) {
+    coverDiv.innerHTML = `<img src="${track.cover}" alt="Capa">`;
+  } else {
+    coverDiv.textContent = "🎵";
+  }
+  }
 
 function setTab(tab,e){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
