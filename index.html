@@ -109,16 +109,28 @@ audio{width:160px}
 
 <script>
 /* DISFARCE */
-let unlocked=false;
-let pressTimer;
-header.onmousedown=()=>pressTimer=setTimeout(unlock,3000);
-header.onmouseup=()=>clearTimeout(pressTimer);
-function unlock(){
-  fake.style.display="none";
-  app.style.display="block";
-  header.textContent="Músicas";
-}
+let pressTimer = null;
+const fakeHeader = document.getElementById("fakeHeader");
 
+// tela fake / real
+let unlocked = false;
+
+fakeHeader.addEventListener("touchstart", () => {
+  pressTimer = setTimeout(() => {
+    unlocked = true;
+    document.body.classList.remove("fake");
+    alert("Desbloqueado 💚");
+  }, 3000); // 3 segundos
+});
+
+fakeHeader.addEventListener("touchend", () => {
+  clearTimeout(pressTimer);
+});
+
+fakeHeader.addEventListener("touchmove", () => {
+  clearTimeout(pressTimer);
+}); 
+  
 /* DB + STATE */
 let db,tracks=[],playlists=[],queue=[],index=0;
 
