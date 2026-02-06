@@ -3,72 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Meu Player</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0b1d3a">
+<title>Music</title>
 
 <style>
+:root{
+  --bg:#0b1d3a;
+  --bg2:#061126;
+  --card:#111827;
+  --accent:#38bdf8;
+  --text:#fff;
+}
+
 *{box-sizing:border-box;font-family:system-ui,Arial}
 body{
   margin:0;
-  background:linear-gradient(180deg,#0b1d3a,#061126);
-  color:#fff;
+  background:linear-gradient(180deg,var(--bg),var(--bg2));
+  color:var(--text);
 }
 
-/* TOPO */
+/* HEADER */
 header{
   padding:16px;
   font-size:22px;
-  font-weight:bold;
+  font-weight:600;
 }
 
-/* ABAS */
+/* TABS */
 .tabs{
   display:flex;
-  gap:16px;
-  padding:0 16px 10px;
-  font-size:15px;
+  gap:18px;
+  padding:0 16px 12px;
 }
 .tab{
-  opacity:.6;
+  opacity:.5;
   cursor:pointer;
 }
 .tab.active{
   opacity:1;
-  border-bottom:2px solid #38bdf8;
+  border-bottom:2px solid var(--accent);
+  padding-bottom:4px;
 }
 
-/* BUSCA */
+/* SEARCH */
 .search{
   padding:0 16px 10px;
 }
 .search input{
   width:100%;
-  padding:10px;
+  padding:10px 14px;
   border-radius:20px;
   border:none;
+  outline:none;
 }
 
-/* LISTA */
+/* LIST */
 .list{
-  padding:10px;
+  padding:8px;
+  padding-bottom:120px;
 }
 .track{
   display:flex;
   align-items:center;
   gap:12px;
   padding:10px;
-  border-radius:10px;
+  border-radius:12px;
 }
 .track:hover{
   background:rgba(255,255,255,.08);
+}
+.track.playing{
+  background:rgba(56,189,248,.18);
 }
 .cover{
   width:48px;
   height:48px;
   border-radius:8px;
-  background:#1e293b;
+  background:#1f2937;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -92,34 +102,36 @@ header{
 }
 audio{width:100%}
 
-/* PLAY ANIMAÇÃO */
-.playing{
-  animation:pulse 1.2s infinite;
+/* BOTÃO + */
+.addBtn{
+  position:fixed;
+  bottom:90px;
+  left:50%;
+  transform:translateX(-50%);
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  background:var(--accent);
+  color:#000;
+  font-size:34px;
+  border:none;
 }
-@keyframes pulse{
-  0%{transform:scale(1)}
-  50%{transform:scale(1.08)}
-  100%{transform:scale(1)}
-}
+.addBtn:active{transform:translateX(-50%) scale(.95)}
 </style>
 </head>
 
 <body>
 
-<header>Faixas</header>
+<header>Músicas</header>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('tracks')">Faixas</div>
-  <div class="tab" onclick="switchTab('folders')">Pastas</div>
-  <div class="tab" onclick="switchTab('playlists')">Playlists</div>
+  <div class="tab active" onclick="setTab('tracks')">Faixas</div>
+  <div class="tab" onclick="setTab('artists')">Pastas</div>
+  <div class="tab" onclick="setTab('playlists')">Playlists</div>
 </div>
 
 <div class="search">
-  <input type="text" placeholder="Buscar música..." oninput="search(this.value)">
-</div>
-
-<div style="padding:0 16px 10px">
-  <input type="file" accept="audio/*" multiple onchange="loadSongs(event)">
+  <input type="text" placeholder="Buscar..." oninput="search(this.value)">
 </div>
 
 <div class="list" id="list"></div>
@@ -128,33 +140,78 @@ audio{width:100%}
   <audio id="audio" controls></audio>
 </div>
 
-<script>
-const list = document.getElementById("list");
-const audio = document.getElementById("audio");
-let tracks=[];
+<button class="addBtn" onclick="file.click()">+</button>
+<input type="file" id="file" accept="audio/*" multiple hidden>
 
-/* CARREGAR MÚSICAS */
-function loadSongs(e){
-  [...e.target.files].forEach(file=>{
-    const url = URL.createObjectURL(file);
-    tracks.push({name:file.name,url});
+<script>
+let db;
+let currentTab="tracks";
+let tracks=[];
+const list=document.getElementById("list");
+const audio=document.getElementById("audio");
+
+/* DATABASE */
+const req=indexedDB.open("MusicDB",1);
+req.onupgradeneeded=e=>{
+  db=e.target.result;
+  db.createObjectStore("tracks",{keyPath:"id",autoIncrement:true});
+};
+req.onsuccess=e=>{
+  db=e.target.result;
+  loadDB();
+};
+
+/* LOAD DB */
+function loadDB(){
+  tracks=[];
+  const tx=db.transaction("tracks","readonly");
+  tx.objectStore("tracks").openCursor().onsuccess=e=>{
+    const c=e.target.result;
+    if(c){
+      tracks.push(c.value);
+      c.continue();
+    }else{
+      renderTracks(tracks);
+    }
+  };
+}
+
+/* ADD FILES */
+file.onchange=()=>{
+  [...file.files].forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const artist=f.name.includes("-")?f.name.split("-")[0].trim():"Desconhecido";
+      saveTrack({
+        name:f.name,
+        artist,
+        blob:reader.result
+      });
+    };
+    reader.readAsArrayBuffer(f);
   });
-  render(tracks);
+};
+
+/* SAVE */
+function saveTrack(obj){
+  const tx=db.transaction("tracks","readwrite");
+  tx.objectStore("tracks").add(obj);
+  tx.oncomplete=loadDB;
 }
 
 /* RENDER */
-function render(arr){
+function renderTracks(arr){
   list.innerHTML="";
   arr.forEach(t=>{
     const div=document.createElement("div");
     div.className="track";
-    div.onclick=()=>play(t.url,div);
+    div.onclick=()=>play(t,div);
 
     div.innerHTML=`
       <div class="cover">🎵</div>
       <div class="info">
         <div class="title">${t.name}</div>
-        <div class="artist">Arquivo local</div>
+        <div class="artist">${t.artist}</div>
       </div>
     `;
     list.appendChild(div);
@@ -162,28 +219,47 @@ function render(arr){
 }
 
 /* PLAY */
-function play(url,el){
-  document.querySelectorAll(".track").forEach(t=>t.classList.remove("playing"));
+function play(t,el){
+  document.querySelectorAll(".track").forEach(x=>x.classList.remove("playing"));
   el.classList.add("playing");
-  audio.src=url;
+  audio.src=URL.createObjectURL(new Blob([t.blob]));
   audio.play();
 }
 
-/* BUSCA */
+/* SEARCH */
 function search(txt){
-  const f=tracks.filter(t=>t.name.toLowerCase().includes(txt.toLowerCase()));
-  render(f);
+  const f=tracks.filter(t=>
+    t.name.toLowerCase().includes(txt.toLowerCase()) ||
+    t.artist.toLowerCase().includes(txt.toLowerCase())
+  );
+  renderTracks(f);
 }
 
-/* ABAS (visual) */
-function switchTab(name){
+/* TABS */
+function setTab(tab){
+  currentTab=tab;
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   event.target.classList.add("active");
-}
 
-/* PWA */
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("service-worker.js");
+  if(tab==="tracks") renderTracks(tracks);
+  if(tab==="artists"){
+    const g={};
+    tracks.forEach(t=>{
+      g[t.artist]=g[t.artist]||[];
+      g[t.artist].push(t);
+    });
+    list.innerHTML="";
+    Object.keys(g).forEach(a=>{
+      const d=document.createElement("div");
+      d.className="track";
+      d.innerHTML=`<div class="cover">📁</div><div class="info"><div class="title">${a}</div></div>`;
+      d.onclick=()=>renderTracks(g[a]);
+      list.appendChild(d);
+    });
+  }
+  if(tab==="playlists"){
+    list.innerHTML="<p style='padding:20px;opacity:.7'>Playlists em breve 💿</p>";
+  }
 }
 </script>
 
