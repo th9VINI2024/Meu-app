@@ -263,10 +263,11 @@ function setTab(tab){
 }
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("./service-worker.js")
-      .then(() => console.log("Service Worker registrado com sucesso"))
-      .catch(err => console.error("Erro no SW:", err));
+    navigator.serviceWorker.register("/Meu-app/service-worker.js", {
+      scope: "/Meu-app/"
+    })
+    .then(reg => console.log("SW registrado com escopo:", reg.scope))
+    .catch(err => console.error("Erro SW:", err));
   });
 }
 </script>
